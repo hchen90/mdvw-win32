@@ -192,7 +192,15 @@ void trans::trans_start(const CString& from, const CString& to)
 			trans::chk_blkcode(output, tBlkCode);
 			trans::chk_blkolst(output, tBlkLstN);
 
-			char suf[1024], ch,* s;
+			char suf[1024], ch, *s;
+			/*const char* cs = mr[0].first;
+
+			if (*cs == '*') {
+				trans::sub_element(cs + 1, suf, sizeof(suf));
+			}
+			else {
+				trans::sub_element(cs, suf, sizeof(suf));
+			}*/
 
 			strncpy_s(suf, mr.str().c_str(), sizeof(suf));
 
@@ -264,8 +272,10 @@ void trans::trans_start(const CString& from, const CString& to)
 			trans::chk_blkolst(output, tBlkLstN);
 
 			char suf[1024 * 4];
-			
-			strncpy_s(suf, mr.str().c_str(), sizeof(suf));
+
+			trans::sub_element(mr.str().c_str(), suf, sizeof(suf));
+
+			//strncpy_s(suf, mr.str().c_str(), sizeof(suf));
 
 			if (strlen(suf) > 0) {
 				output.Write("<p>", 4);
@@ -306,6 +316,102 @@ void trans::trans_start(const CString& from, const CString& to)
 }
 
 ////
+void trans::truncate(const char* str, int ch, char buf[], size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		if (str[i] == ch) {
+			buf[i] = 0;
+			break;
+		}
+		else {
+			buf[i] = str[i];
+		}
+	}
+}
+
+size_t trans::url_get(const char* str, int ch1, int ch2, char buf[], size_t len)
+{
+	size_t i, j, l = strlen(str);
+	bool cop = false;
+
+	for (i = 0, j = 0; i < l; i++) {
+		if (str[i] == ch1) cop = true;
+		else if (str[i] == ch2) cop = false;
+		else if (cop) {
+			if (j < len) buf[j++] = str[i];
+		}
+	}
+
+	return j;
+}
+
+size_t trans::url_label(const char* str, char buf[], size_t len)
+{
+	return trans::url_get(str, '[', ']', buf, len);
+}
+
+size_t trans::url_text(const char* str, char buf[], size_t len)
+{
+	return trans::url_get(str, '(', ')', buf, len);
+}
+
+void trans::sub_element(const char* str, char buf[], size_t len)
+{
+	size_t i = 0, j = 0, l = strlen(str), k;
+	char suf[MAX_PATH];
+
+	std::regex rx0("\\[[^\\]]+\\]\\([^\\)]+\\)");
+	std::regex rx1("!\\[[^\\]]+\\]\\([^\\)]+\\)");
+
+	std::cmatch mr;
+
+	memset(buf, 0, len);
+
+	while (i < l) {
+		if (str[i] == '*' && i + 1 < l && str[i + 1] == '*') {
+			trans::truncate(str + i + 2, '*', suf, sizeof(suf));
+			j += snprintf(buf + j, len - j, "<b>%s</b>", suf);
+			i += strlen(suf) + 4;
+		}
+		else if (str[i] == '*' && i + 1 < l) {
+			trans::truncate(str + i + 1, '*', suf, sizeof(suf));
+			j += snprintf(buf + j, len - j, "<i>%s</i>", suf);
+			i += strlen(suf) + 2;
+		}
+		else if (std::regex_match((const char*)str, (const char*)(str + l), mr, rx0)) {
+			char buffer[2][MAX_PATH] = {0};
+			const char* p = mr[0].first;
+
+			size_t a = trans::url_label(p, buffer[0], sizeof(buffer[0]));
+			size_t b = trans::url_text(p, buffer[1], sizeof(buffer[1]));
+
+			if (a > 0 && b > 0) {
+				j += snprintf(buf + j, len - j, "<a href=\"%s\">%s</a>", buffer[1], buffer[0]);
+			}
+
+			i += strlen(p);
+		}
+		else if (std::regex_match((const char*)str, (const char*)(str + l), mr, rx1)) {
+			char buffer[2][MAX_PATH] = { 0 };
+			const char* p = mr[0].first;
+
+			size_t a = trans::url_label(p, buffer[0], sizeof(buffer[0]));
+			size_t b = trans::url_text(p, buffer[1], sizeof(buffer[1]));
+
+			if (a > 0 && b > 0) {
+				j += snprintf(buf + j, len - j, "<img src=\"%s\">%s</img>", buffer[1], buffer[0]);
+			}
+
+			i += strlen(p);
+		}
+		else {
+			buf[j++] = str[i++];
+		}
+	}
+}
+
 void trans::chk_blkcode(CFile & output, std::vector<char*>& tBlkCode)
 {
 	if (tBlkCode.size() > 0) {

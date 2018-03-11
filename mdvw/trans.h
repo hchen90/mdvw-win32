@@ -14,6 +14,10 @@ namespace trans {
 	TCHAR* pathtitle(const TCHAR* buf);
 	TCHAR* tempfile(TCHAR* buf, const TCHAR* old);
 	void trans_start(const CString& from, const CString& to);
+	void truncate(const char * str, int ch, char buf[], size_t len);
+	size_t url_get(const char * str, int ch1, int ch2, char buf[], size_t len);
+	size_t url_label(const char* str, char buf[], size_t len);
+	size_t url_text(const char* str, char buf[], size_t len);
 	/////
 	void sub_element(const char* str, char buf[], size_t len);
 	void chk_blkcode(CFile& output, std::vector<char*>& tBlkCode);
